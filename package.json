@@ -1,0 +1,24 @@
+{
+  "private": true,
+  "name": "imdb-scr3",
+  "version": "1.0.4",
+  "description": "Serverless IMDB API powered by Cloudflare Worker",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev src/index.js --port 3000",
+    "deploy": "wrangler deploy src/index.js",
+    "test": "jest"
+  },
+  "author": "tuhinpal <me@thetuhin.com>",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "jest": "^28.1.0",
+    "wrangler": "3.22.0"
+  },
+  "dependencies": {
+    "dom-parser": "^0.1.6",
+    "hono": "^1.4.1",
+    "html-entities": "^2.3",
+    "qs": "^6.11.1"
+  }
+}

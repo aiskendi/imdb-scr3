@@ -1,0 +1,4 @@
+name = "imdb-scr3"
+main = "src/index.js"
+compatibility_date = "2023-07-01"
+compatibility_flags = ["nodejs_compat"]

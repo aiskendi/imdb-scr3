@@ -1,0 +1,10 @@
+{
+  "name": "imdb-api",
+  "description": "Serverless IMDB API",
+  "main": "src/index.js",
+  "type": "javascript",
+  "build": {
+    "command": "npm install --ignore-scripts --no-optional",
+    "cwd": "."
+  }
+}
