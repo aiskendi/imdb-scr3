@@ -73,7 +73,7 @@ title.get("/:id/akas", async (c) => {
   }
 
   try {
-    const result = await getAkas(id);
+    const result = await getAkas(id, c.env);
     const hasData = Boolean(result.originaltitle) || result.akas.length > 0;
 
     if (!hasData) {

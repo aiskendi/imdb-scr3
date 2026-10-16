@@ -122,9 +122,23 @@ async function fetchDirect(id) {
   return parsed;
 }
 
-async function fetchViaProxy(id) {
+/**
+ * Authenticated proxy call. The API key matters: anonymous r.jina.ai answers **429** to
+ * Cloudflare Workers egress (shared datacenter IPs), which is what this route used to
+ * return. The key is a worker SECRET (`wrangler secret put JINA_API_KEY`), exposed either
+ * as `env.JINA_API_KEY` (Hono context) or `process.env.JINA_API_KEY` (nodejs_compat).
+ */
+async function fetchViaProxy(id, env) {
+  const headers = { "User-Agent": BROWSER_UA, accept: "text/plain" };
+  const key =
+    (env && env.JINA_API_KEY) ||
+    (typeof process !== "undefined" && process.env
+      ? process.env.JINA_API_KEY
+      : "");
+  if (key) headers.Authorization = `Bearer ${key}`;
+
   const res = await fetch(`https://r.jina.ai/${RELEASEINFO_URL(id)}`, {
-    headers: { "User-Agent": BROWSER_UA, accept: "text/plain" },
+    headers,
   });
   if (!res.ok) throw new Error(`proxy http ${res.status}`);
   const text = await res.text();
@@ -143,7 +157,7 @@ async function fetchViaProxy(id) {
  *
  * @returns {Promise<{title:?string,originaltitle:?string,akas:Array,_source:string,_errors?:string[]}>}
  */
-async function getAkas(id) {
+async function getAkas(id, env) {
   const errors = [];
 
   try {
@@ -154,7 +168,7 @@ async function getAkas(id) {
   }
 
   try {
-    const proxied = await fetchViaProxy(id);
+    const proxied = await fetchViaProxy(id, env);
     return { ...proxied, _source: "releaseinfo_proxy" };
   } catch (error) {
     errors.push("proxy: " + error.message);

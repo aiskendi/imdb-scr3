@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import DomParser from "dom-parser";
 import { decode as entityDecoder } from "html-entities";
-import apiRequestRawHtml from "../helpers/apiRequestRawHtml";
+import apiRequestRawHtml from "../helpers/apiRequestRawHtml.js";
 const reviews = new Hono();
 
 reviews.get("/:id", async (c) => {

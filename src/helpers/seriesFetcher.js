@@ -1,5 +1,7 @@
 import DomParser from "dom-parser";
-import apiRequestRawHtml from "./apiRequestRawHtml";
+// Explicit `.js`: plain Node ESM (the self-hosted `npm start`) does not do extension
+// resolution, so an extensionless specifier is ERR_MODULE_NOT_FOUND at boot.
+import apiRequestRawHtml from "./apiRequestRawHtml.js";
 
 export default async function seriesFetcher(id) {
   try {

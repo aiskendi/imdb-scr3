@@ -5,7 +5,7 @@ import search from "./routes/search.js";
 import title from "./routes/title.js";
 import reviews from "./routes/reviews.js";
 import userRoutes from "./routes/user/index.js";
-import cache from "./helpers/cache";
+import cache from "./helpers/cache.js";
 
 const app = new Hono();
 

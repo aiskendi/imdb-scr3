@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import userInfo from "./info";
-import userRating from "./rating";
+import userInfo from "./info.js";
+import userRating from "./rating.js";
 const userRoutes = new Hono();
 
 userRoutes.get("/:id", userInfo);

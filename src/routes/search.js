@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { apiRequestJson } from "../helpers/apiRequestRawHtml";
+import { apiRequestJson } from "../helpers/apiRequestRawHtml.js";
 
 const search = new Hono();
 

@@ -1,6 +1,6 @@
 import DomParser from "dom-parser";
 import qs from "qs";
-import apiRequestRawHtml from "../../helpers/apiRequestRawHtml";
+import apiRequestRawHtml from "../../helpers/apiRequestRawHtml.js";
 
 const SORT_OPTIONS = {
   most_recent: "date_added,desc",

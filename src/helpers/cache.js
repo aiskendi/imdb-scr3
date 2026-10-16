@@ -1,6 +1,13 @@
 import config from "../../config.js";
 
 async function cache(c, next) {
+  // The Cache API exists on Cloudflare Workers only. When this app runs on plain Node
+  // (server.js, i.e. the self-hosted deployment) `caches` is undefined, and without this
+  // guard every single request fails with "caches is not defined".
+  if (typeof caches === "undefined" || !caches.default) {
+    return await next();
+  }
+
   const key = c.req.url;
   const cacheStore = await caches.default;
   const response = await cacheStore.match(key);
