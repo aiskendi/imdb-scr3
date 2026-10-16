@@ -8,16 +8,22 @@ import { Hono } from "hono";
 // cannot parse `with { type: "json" }` ("Expected \";\" but found \"with\""). Reading npm's
 // own environment is the one form both runtimes accept — `npm start` exports
 // npm_package_* — with static fallbacks for the Worker, where they are absent.
+// `typeof process` (not `process.env?.`) — on the Worker runtime `process` is not even
+// defined at upload validation time, and a bare reference aborts the deploy with
+// "Uncaught ReferenceError: process is not defined".
+const NPM_ENV =
+  typeof process !== "undefined" && process.env ? process.env : {};
+
 const PKG = {
-  name: process.env.npm_package_name || "imdb-scr3",
+  name: NPM_ENV.npm_package_name || "imdb-scr3",
   description:
-    process.env.npm_package_description ||
+    NPM_ENV.npm_package_description ||
     "Serverless IMDB API powered by Cloudflare Worker",
-  version: process.env.npm_package_version || "1.0.4",
-  author: process.env.npm_package_author || "tuhinpal <me@thetuhin.com>",
-  license: process.env.npm_package_license || "Apache-2.0",
+  version: NPM_ENV.npm_package_version || "1.0.4",
+  author: NPM_ENV.npm_package_author || "tuhinpal <me@thetuhin.com>",
+  license: NPM_ENV.npm_package_license || "Apache-2.0",
   homepage:
-    process.env.npm_package_homepage || "https://github.com/aiskendi/imdb-scr3",
+    NPM_ENV.npm_package_homepage || "https://github.com/aiskendi/imdb-scr3",
 };
 
 const index = new Hono();
