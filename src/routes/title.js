@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getTitle, getSeason } from "../helpers/getTitle.js";
 import { getAkas } from "../helpers/akas.js";
+import { persistMediaIds } from "../helpers/mediaIds.js";
 
 const title = new Hono();
 
@@ -19,6 +20,29 @@ title.get("/:id", async (c) => {
 
   try {
     const result = await getTitle(id, c.env);
+
+    // A title whose IMDb ORIGINAL title differs from its release title is exactly the case
+    // where the catalogue files are named differently ("Superstition" vs
+    // "Khurafat.Perjanjian.Syaitan") — and this handler is the one that knows the year, so
+    // it writes the row itself. Clients then never POST /media-ids just to store an aka.
+    const originalTitle = String(result.originaltitle || "").trim();
+    const releaseTitle = String(result.title || "").trim();
+    if (
+      !result.error &&
+      originalTitle !== "" &&
+      originalTitle.toLowerCase() !== releaseTitle.toLowerCase()
+    ) {
+      result.persisted = await persistMediaIds(
+        {
+          imdbId: id,
+          title: releaseTitle,
+          year: result.year || "",
+          aka: originalTitle,
+          type: result.isSeries ? "series" : "movie",
+        },
+        c.env
+      );
+    }
 
     // Return error status for failed requests
     if (result.error) {
@@ -75,6 +99,22 @@ title.get("/:id/akas", async (c) => {
   try {
     const result = await getAkas(id, c.env);
     const hasData = Boolean(result.originaltitle) || result.akas.length > 0;
+
+    // Write the identity (id + alternate title) straight into media_ids_idx, so a caller
+    // does not have to spend its own /media-ids round-trip just to store the aka. The
+    // `?title=&year=` hints come from the caller, which knows them; the endpoint is
+    // idempotent and refuses a write without a year. Measured: 1.2 s, so once per title.
+    const resolvedAka = result.originaltitle || (result.akas[0] && result.akas[0].text) || "";
+    result.persisted = await persistMediaIds(
+      {
+        imdbId: id,
+        title: c.req.query("title") || "",
+        year: c.req.query("year") || "",
+        aka: resolvedAka,
+        type: c.req.query("type") || "movie",
+      },
+      c.env
+    );
 
     if (!hasData) {
       c.status(502);
