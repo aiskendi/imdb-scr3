@@ -28,6 +28,12 @@ const PKG = {
 
 const index = new Hono();
 
+// NOTE: there is deliberately no generic r.jina.ai proxy route here. The r.jina.ai key is
+// used INSIDE this app — [`fetchFromJina()`](helpers/getTitle.js) for `/title/{id}` and
+// [`fetchViaProxy()`](helpers/akas.js) for `/title/{id}/akas` — so every consumer
+// (imdb-scraper.php, the PencariMovie backend, any other addon) gets the data from this
+// API and never needs a key, and no text-proxy is exposed to abuse.
+
 index.get("/", async (c) => {
   return c.json({
     status: "Running",

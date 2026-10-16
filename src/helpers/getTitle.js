@@ -174,8 +174,68 @@ async function attachSeriesData(result, id) {
   }
 }
 
+/**
+ * Fetch the IMDb page through r.jina.ai and hand back its RAW HTML.
+ *
+ * IMDb answers datacenter egress with `202` and a 0-byte body (measured from this VPS *and*
+ * from Cloudflare Workers), so before this the chain could only ever fall through to the
+ * partial `suggestion_api` shape — where `originaltitle` merely echoes `title` and there are
+ * no AKAs. r.jina.ai fetches from its own egress and, with `X-Return-Format: html`, returns
+ * the page itself (measured 1,414,966 bytes containing `__NEXT_DATA__`), so
+ * [`buildResultFromHTML()`](getTitle.js) — the same parser the direct path uses — produces a
+ * COMPLETE record including the real `originaltitle`.
+ *
+ * The key is read from this host's environment/secret and is never sent to a client; the
+ * anonymous route is rate-limited and currently answers 403, so a key is required for this
+ * fallback to work at all.
+ */
+// In-process cache for the jina HTML fetches. The page is ~1.4 MB, i.e. a few hundred
+// thousand tokens against the account's budget, so the same id must not be paid for twice
+// in a row. (The Workers Cache API middleware in cache.js is a no-op on Node, so without
+// this every repeat call re-spent tokens.)
+const jinaHtmlCache = new Map(); // id -> { at, html }
+const JINA_HTML_TTL_MS = 30 * 60 * 1000;
+const JINA_HTML_CACHE_MAX = 20;
+
+async function fetchFromJina(id, env) {
+  const cached = jinaHtmlCache.get(id);
+  if (cached && Date.now() - cached.at < JINA_HTML_TTL_MS) {
+    return cached.html;
+  }
+  const key =
+    (env && env.JINA_API_KEY) ||
+    (typeof process !== "undefined" && process.env
+      ? process.env.JINA_API_KEY
+      : "");
+  if (!key) {
+    return null;
+  }
+
+  const res = await fetch(`https://r.jina.ai/https://www.imdb.com/title/${id}`, {
+    headers: {
+      authorization: `Bearer ${key}`,
+      "x-return-format": "html",
+      accept: "text/html",
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`r.jina.ai http ${res.status}`);
+  }
+  const html = await res.text();
+  if (!html.includes("__NEXT_DATA__")) {
+    return null;
+  }
+  if (jinaHtmlCache.size >= JINA_HTML_CACHE_MAX) {
+    jinaHtmlCache.delete(jinaHtmlCache.keys().next().value);
+  }
+  jinaHtmlCache.set(id, { at: Date.now(), html });
+  return html;
+}
+
 // Main function - fallback chain
-async function getTitle(id) {
+async function getTitle(id, env) {
   let result = null;
 
   // === METHOD 1: HTML Scraping with retry ===
@@ -196,6 +256,25 @@ async function getTitle(id) {
     }
   } catch (error) {
     console.error(`HTML scraping failed for ${id}:`, error.message);
+  }
+
+  // === METHOD 1b: the same page through r.jina.ai, as raw HTML ===
+  // Runs before the GraphQL/suggestion fallbacks because those return less: the suggestion
+  // shape has no real original title and no AKAs, and GraphQL is 403 from datacenter egress.
+  try {
+    const html = await fetchFromJina(id, env);
+    if (html) {
+      const props = parseNextData(html);
+      if (props) {
+        result = buildResultFromHTML(id, props);
+        if (result && result.title) {
+          result._source = "html_jina";
+          return await attachSeriesData(result, id);
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`jina fallback failed for ${id}:`, error.message);
   }
 
   // === METHOD 2: GraphQL API ===

@@ -18,7 +18,7 @@ title.get("/:id", async (c) => {
   }
 
   try {
-    const result = await getTitle(id);
+    const result = await getTitle(id, c.env);
 
     // Return error status for failed requests
     if (result.error) {
